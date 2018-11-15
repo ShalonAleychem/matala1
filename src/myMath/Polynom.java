@@ -1,6 +1,7 @@
 package myMath;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.function.Predicate;
 import java.util.Scanner;
@@ -11,36 +12,37 @@ import myMath.Monom;
  * 2. Finding a numerical value between two values (currently support root only f(x)=0).
  * 3. Derivative
  * 
- * @author Ron
+ * @author Ron Sider & Adam Mashiah
  *
  */
 public class Polynom implements Polynom_able{
-	// ********** add your code below ***********
-	public Polynom() {
-		this.iteretor();								
-	}
-	public Polynom(Polynom p1) {//deep copy polynom
-		for(int i=0;i<p1.monom_list.size();i++)
-		{
-			this.monom_list.add(p1.monom_list.get(i));
+	
+	public void Init(String str) {//full description in accumulated doc.
+		
+		str=str.replaceAll("-", "+-");//same sign
+		String[]S=str.split("\\+");
+		for(String s:S)
+		{									
+			for(int i=0;i<s.length();i++)
+			{
+				if(s.charAt(i)=='x')
+				{
+					String s1=s.substring(0, i);
+					String s2=s.substring(i+2, s.length());
+					double co=Double.parseDouble(s1);//coefficent
+					int po=Integer.parseInt(s2);//power
+					Monom m=new Monom(co,po);
+					this.monom_list.add(m);
+				}				
+			}					
 		}
-				
-	}
-	public Polynom(String str) {
-	Polynom P;
-	str.replaceAll("-", "+-");//in case there is a minus sign we will replace it with '+-' which is the same
-	String[]S=str.split("-");
-	for(int i=0;i<S.length;i++)
-	{
-		Monom M=new Monom();
-		this.monom_list.add(i, );
+		
+		Collections.sort(monom_list, new Monom_Comperator());
 	}
 	
-	
-	}
 	ArrayList<Monom> monom_list=new ArrayList<Monom>();
 	@Override
-	public double f(double x) {//calculate the polynom at x=something
+	public double f(double x) {//calculate value of polynom at certain point
 		
 		double result=0;
 	
@@ -48,113 +50,205 @@ public class Polynom implements Polynom_able{
 		{
 			result=result+(monom_list.get(i).get_coefficient()*Math.pow(x,monom_list.get(i).get_power()));
 		}
-		return result;
-			
+		return result;			
 	}
 
 	@Override
-	public void add(Polynom_able p1) {
-		// TODO Auto-generated method stub
-		
+	public void add(Polynom_able p1)
+	{
+		Iterator<Monom> it = p1.iteretor();
+		Monom temp = it.next();
+		while (it.hasNext())
+		{
+			this.add(temp);
+			temp = it.next();
+		}
+		this.add(temp);	
+		Collections.sort(this.monom_list, new Monom_Comperator());
 	}
 
 	@Override
 	public void add(Monom m1) {
-		for(int i=0;i<this.monom_list.size();i++)
+		int key = 0;
+		Iterator<Monom> it = iteretor();
+		Monom_Comperator temp = new Monom_Comperator();		
+		if (this.monom_list.isEmpty())
+			this.monom_list.add(m1);
+		else if (this.monom_list.size() == 1)
 		{
-			if(m1.get_power()==this.monom_list.get(i).get_power())
+			Monom monom = new Monom(this.monom_list.get(0));
+			int comparison = temp.compare(monom,m1);
+			if (comparison == 0)
 			{
-				this.monom_list.get(i).add(m1);
+				monom.add(m1);
+				this.monom_list.set(key, monom);
 			}
-			else
+			if (comparison == -1)
 			{
-				monom_list.add(m1);
+				this.monom_list.add(m1);
 			}
+			if (comparison==1)
+				this.monom_list.add(m1);
+						
 		}
-		
+		else while(it.hasNext())
+		{
+			Monom monom = new Monom(it.next());
+			int comparison = temp.compare(monom,m1);
+			if (comparison == 0)
+			{
+				monom.add(m1);
+				this.monom_list.set(key, monom);
+				break;
+			}
+			if (comparison == 1)
+			{
+				
+				this.monom_list.add(m1);
+				
+				break;
+			}
+			if (!it.hasNext() && comparison == -1 )
+			{
+				
+				this.monom_list.add(m1);
+				
+				break;
+			}
+			key++;
+		}
+		Collections.sort(this.monom_list , new Monom_Comperator());
 	}
 
 	@Override
 	public void substract(Polynom_able p1) {
-		// TODO Auto-generated method stub
+		//Iterator<Monom>it1=this.iteretor();
+		Iterator<Monom>it2=p1.iteretor();
+		Monom m=it2.next();
+		while(it2.hasNext())
+		{
+			m.negative_monom();
+			this.add(m);
+			m=it2.next();
+		}
 		
 	}
 
 	@Override
 	public void multiply(Polynom_able p1) {
-		// TODO Auto-generated method stub
+		
 		
 	}
 
 	@Override
 	public boolean equals(Polynom_able p1) {
-		// TODO Auto-generated method stub
-		return false;
+		Iterator<Monom> it = this.iteretor();
+		Iterator<Monom> _p1 = p1.iteretor();
+		while (it.hasNext() && _p1.hasNext())
+			if (!it.next().equals(_p1.next())) 
+				return false;
+		if (it.hasNext() || _p1.hasNext()) 
+			return false;
+		return true;
 	}
 
 	@Override
-	public boolean isZero() {
-		// TODO Auto-generated method stub
-		return false;
+	public boolean isZero() {//zero polynom=every monom in pol. is the zero monom
+		Iterator<Monom> it = this.iteretor();
+		int count=0;
+		while(it.hasNext())
+		{
+			Monom m=it.next();
+			if(m.Zero_Monom()==true)
+				count++;
+		}
+		if(count==this.monom_list.size())
+		return true;
+		else return false;					
 	}
 
 	@Override
 	public double root(double x0, double x1, double eps) {
-		// TODO Auto-generated method stub
-		return 0;
+		double x_0=this.f(x0);
+		double x_1=this.f(x1);
+		if(x_0*x_1>=0)
+		{
+			System.out.println("Assertion of x0 and x1 is not correct");
+		}
+		double temp=x0;
+		while((x1-x0)>=eps)
+		{
+			temp=(x1+x0)/2;
+			if(this.f(temp)==0.0)
+			break;
+			else if(this.f(temp)*this.f(x0)<0)
+			x1=temp;
+			else
+				x0=temp;
+		}
+		return temp;
 	}
 
 	@Override
-	public Polynom_able copy() {
-		// TODO Auto-generated method stub
-		return null;
+	public Polynom copy() {
+		Iterator<Monom>it=this.iteretor();
+		Polynom p=new Polynom();
+		while(it.hasNext())
+		{
+			Monom m=it.next();
+			p.add(m);
+		}
+		return p;
 	}
 
 	@Override
 	public Polynom_able derivative() {
-		// TODO Auto-generated method stub
-		return null;
+		Polynom p=new Polynom();
+		Iterator<Monom>it=this.iteretor();
+		while(it.hasNext())
+		{			
+			Monom m=it.next();
+			m.derivative();
+			p.add(m);
+		}
+		
+		return p;		
 	}
 
 	@Override
 	public double area(double x0, double x1, double eps) {
-		// TODO Auto-generated method stub
-		return 0;
+		double Delta_X=(x1-x0)/eps;
+		double sum=0;
+		for(int i=1;i<=eps;i++)
+		{
+			double xi=x0+Delta_X*i;
+			sum=sum+this.f(xi);
+		}
+		return sum*Delta_X;
 	}
-	private void initializelistofmonoms()//used in iterator
-	{
-		System.out.println("enter the number of monoms: ");
-		
-	}
+	
 
 	@Override
-	public Iterator<Monom> iteretor() //get a collection of monoms and re-order them to get polynom
+	public Iterator<Monom> iteretor() //get a collection of monoms in "iterator" format
 	{
-		System.out.println("enter number of desired monoms");//kelet shel user
-		Scanner reader=new Scanner(System.in);
-		int n=reader.nextInt();
-		reader.close();
-		for(int i=0;i<n;i++)
-		{
-			System.out.println("please enter coefficent");
-			int c=reader.nextInt();
-			reader.close();
-			System.out.println("please enter power");
-			int p=reader.nextInt();
-			reader.close();
-			Monom m=new Monom(c,p);
-		   monom_list.add(m);
-		}
-		System.out.println("the polynom is: ");
-		for(Monom m:monom_list)
-		{
-			System.out.print(m.get_coefficient()+"x^"+m.get_power()+" ");
-		}
-		return monom_list.iterator();
+		return this.monom_list.iterator();
 						
 	}
+	@Override
 	public String toString() {
-		return "";
+		Iterator<Monom> it = this.iteretor();
+		String str = it.next().toString();
+		Monom temp ;
+		while(it.hasNext())
+		{
+			temp = it.next();
+			if (temp.get_coefficient() == 0)
+				break;
+			else if (temp.get_coefficient() > 0)
+				str += "+";
+			str += temp.toString();
+		}
+		return str;				
 		}
 	
 }
